@@ -14,6 +14,6 @@ module.exports = {
       }
     }
   },
-  lockGasLimit: 200000000000,
-  gasPrice: 10000000000,
+  // lockGasLimit: 300000000000000,
+  // gasPrice: 18489689870,
 };

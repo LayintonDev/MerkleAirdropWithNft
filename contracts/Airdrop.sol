@@ -61,7 +61,6 @@ contract LayiAirDrop {
      */
     function claimAirDrop(
         bytes32[] calldata proof,
-        bytes32 leaf,
         uint256 index,
         uint256 amount
     ) external {
@@ -81,7 +80,7 @@ contract LayiAirDrop {
         }
 
         // Verify the claimant's proof before allowing them to claim tokens.
-        verifyProof(proof, leaf, index, amount, msg.sender);
+        verifyProof(proof, index, amount, msg.sender);
 
         // Mark the index as claimed in the bitmap.
         BitMaps.setTo(airDropList, index, true);
@@ -112,35 +111,15 @@ contract LayiAirDrop {
      */
     function verifyProof(
         bytes32[] memory proof,
-        bytes32 leaf,
         uint256 index,
         uint256 amount,
         address addr
     ) private view {
         // Compute the leaf node in the Merkle tree by hashing the claimant's address, index, and amount.
-        // bytes32 leaf = keccak256(abi.encodePack(addr, index, amount));
-        bytes32 computedHash = leaf;
-
-        for (uint256 i = 0; i < proof.length; i++) {
-            bytes32 proofElement = proof[i];
-
-            if (computedHash <= proofElement) {
-                // Hash(current computed hash + current element of the proof)
-                computedHash = keccak256(
-                    abi.encodePacked(computedHash, proofElement)
-                );
-            } else {
-                // Hash(current element of the proof + current computed hash)
-                computedHash = keccak256(
-                    abi.encodePacked(proofElement, computedHash)
-                );
-            }
-        }
-
-        // Check if the computed hash (root) is equal to the provided root
+        bytes32 leaf = keccak256(abi.encodePacked(addr, index, amount));
 
         // Revert if the proof does not match the Merkle root.
-        if (computedHash != merkleRoot) {
+        if (!MerkleProof.verify(proof, merkleRoot, leaf)) {
             revert InvalidProof();
         }
     }

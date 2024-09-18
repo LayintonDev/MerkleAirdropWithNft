@@ -34,20 +34,13 @@ describe("Airdrop", function () {
 
     const [owner, other, addr1] = await ethers.getSigners();  // Get three accounts: owner, other, addr1.
 
-    // // Array representing the list of addresses and their token claim amounts (in wei).
-    // const values = [
-    //   [addr1.address, "0", "70000000000000000000"], // addr1 can claim 70 tokens.
-    //   ["0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f", "1", "80000000000000000000"], // Another address, 80 tokens.
-    //   ["0xa0Ee7A142d267C1f36714E4a8F75612F20a79720", "2", "40000000000000000000"], // Another address, 40 tokens.
-    //   ["0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "3", "10000000000000000000"], // Another address, 10 tokens.
-    // ];
 
 
 
     // Get the Merkle root from the tree, which will be used to verify claims.
     const { root, proof, leaf } = await generateMerkleTree({
       path: "addresses.csv",
-      proofAddr: "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720",
+      proofAddr: TOKEN_HOLDER,
       proofAmount: "40000000000000000000",
       proofIndex: "2"
     });
@@ -103,7 +96,7 @@ describe("Airdrop", function () {
       const amount = ethers.parseUnits("40", 18);  // Define the amount of tokens addr1 can claim (40 tokens).
 
       // addr1 claims their airdrop using the Merkle proof, the index, and the amount.
-      await airdropAddress.connect(holder).claimAirDrop(proof, leaf, 6, amount);
+      await airdropAddress.connect(holder).claimAirDrop(proof, 2, amount);
 
       expect(await token.balanceOf(holder.address)).to.equal(amount);  // Check that addr1's balance matches the claimed amount.
     });
@@ -119,7 +112,7 @@ describe("Airdrop", function () {
       const amount = ethers.parseUnits("40", 18);
 
 
-      await expect(airdropAddress.connect(addr1).claimAirDrop(proof, leaf, 2, amount)).to.be.revertedWithCustomError(airdropAddress, "YouDonNotOwnRequiredNft");
+      await expect(airdropAddress.connect(addr1).claimAirDrop(proof, 2, amount)).to.be.revertedWithCustomError(airdropAddress, "YouDonNotOwnRequiredNft");
 
       // expect(await token.balanceOf(holder.address)).to.equal(amount);  
     });
@@ -137,111 +130,32 @@ describe("Airdrop", function () {
       const amount = ethers.parseUnits("40", 18);  // Define the claimable amount.
 
       // holder claims the airdrop once.
-      await airdropAddress.connect(holder).claimAirDrop(proof, leaf, 2, amount);
+      await airdropAddress.connect(holder).claimAirDrop(proof, 2, amount);
 
       expect(await token.balanceOf(holder.address)).to.equal(amount);  // Check that the balance is correct.
 
       // Try to claim the airdrop again (which should fail).
-      expect(airdropAddress.connect(holder).claimAirDrop(proof, leaf, 0, amount)).to.be.revertedWithCustomError(airdropAddress, "AirDropAlreadyClaimed");
+      expect(airdropAddress.connect(holder).claimAirDrop(proof, 0, amount)).to.be.revertedWithCustomError(airdropAddress, "AirDropAlreadyClaimed");
     });
 
   });
 
-  //   it("Should revert claim if claiming time already passed", async function () {
-  //     const { token, airdropAddress, tree, addr1 } = await loadFixture(delpoyLayiAirdropDrop);  // Load the airdrop contract.
-  //     const tokens = ethers.parseUnits("100000", 18);  // Transfer tokens to the airdrop contract.
+  it("Should revert claim if claiming time already passed", async function () {
+    const { token, airdropAddress, root, leaf, holder, proof, addr1 } = await loadFixture(delpoyLayiAirdropDrop);  // Load the airdrop contract.
+    const tokens = ethers.parseUnits("100000", 18);  // Transfer tokens to the airdrop contract.
 
-  //     await token.transfer(airdropAddress, tokens);
+    await token.transfer(airdropAddress, tokens);
 
-  //     let proof;
-  //     for (const [i, v] of tree.entries()) {
-  //       if (v[0] === addr1.address) {
-  //         proof = tree.getProof(i);  // Generate the Merkle proof for addr1.
-  //         break;
-  //       }
-  //     }
 
-  //     const amount = ethers.parseUnits("70", 18);  // Define the claimable amount.
 
-  //     // Fast-forward time to after the airdrop has ended.
-  //     await time.increase(AirDropEndingTimeInSec * 2);
+    const amount = ethers.parseUnits("70", 18);  // Define the claimable amount.
 
-  //     // Try to claim the airdrop (which should fail due to time expiration).
-  //     expect(airdropAddress.connect(addr1).claimAirDrop(proof!, 0, amount)).to.be.revertedWithCustomError(airdropAddress, "ClaimingTimeAlreadyPassed");
-  //   });
+    // Fast-forward time to after the airdrop has ended.
+    await time.increase(AirDropEndingTimeInSec * 2);
 
-  //   it("Should revert if non-owner tries to withdraw remaining tokens", async function () {
-  //     const { token, airdropAddress, addr1 } = await loadFixture(delpoyLayiAirdropDrop);  // Load the airdrop contract.
-  //     const tokens = ethers.parseUnits("100000", 18);  // Transfer tokens to the airdrop contract.
+    // Try to claim the airdrop (which should fail due to time expiration).
+    expect(airdropAddress.connect(holder).claimAirDrop(proof, 2, amount)).to.be.revertedWithCustomError(airdropAddress, "ClaimingTimeAlreadyPassed");
+  });
 
-  //     await token.transfer(airdropAddress, tokens);
 
-  //     // addr1 (non-owner) attempts to withdraw the remaining tokens (which should fail).
-  //     expect(airdropAddress.connect(addr1).withdrawRemainingToken()).to.be.revertedWithCustomError(airdropAddress, "NotOwner");
-  //   });
-
-  //   it("Should revert if owner tries to withdraw when airdrop is still active", async function () {
-  //     const { token, airdropAddress } = await loadFixture(delpoyLayiAirdropDrop);  // Load the airdrop contract.
-  //     const tokens = ethers.parseUnits("100000", 18);  // Transfer tokens to the airdrop contract.
-
-  //     await token.transfer(airdropAddress, tokens);
-
-  //     // Owner tries to withdraw the remaining tokens before the airdrop ends (which should fail).
-  //     expect(airdropAddress.withdrawRemainingToken()).to.be.revertedWithCustomError(airdropAddress, "AirdropIsStillActive");
-  //   });
-
-  //   it("Should allow owner to withdraw remaining tokens when airdrop is over", async function () {
-  //     const { token, owner, airdropAddress } = await loadFixture(delpoyLayiAirdropDrop);  // Load the airdrop contract.
-  //     const tokens = ethers.parseUnits("500000", 18);  // Transfer a large number of tokens to the airdrop contract.
-
-  //     await token.transfer(airdropAddress, tokens);
-
-  //     // Fast-forward time to after the airdrop has ended.
-  //     await time.increase(AirDropEndingTimeInSec * 2);
-
-  //     const remainingBal = await token.balanceOf(airdropAddress);  // Check the remaining balance of the airdrop contract.
-
-  //     // Owner withdraws the remaining tokens.
-  //     await airdropAddress.withdrawRemainingToken();
-
-  //     expect(await token.balanceOf(owner.address)).to.equal(remainingBal);  // Check that the owner has received the remaining balance.
-  //     expect(await token.balanceOf(airdropAddress)).to.equal(0);  // Check that the airdrop contract has no remaining tokens.
-  //   });
-
-  //   it("Should allow only the owner to update the Merkle root", async function () {
-  //     const { airdropAddress, addr1, other } = await loadFixture(delpoyLayiAirdropDrop);  // Load the airdrop contract.
-
-  //     // Define a new set of values and generate a new Merkle tree.
-  //     const values = [
-  //       [addr1.address, "0", "70000000000000000000"],
-  //       [other.address, "1", "80000000000000000000"],
-  //       ["0xa0Ee7A142d267C1f36714E4a8F75612F20a79720", "2", "40000000000000000000"],
-  //       ["0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "3", "10000000000000000000"],
-  //     ];
-  //     const tree = StandardMerkleTree.of(values, ["address", "uint256", "uint256"]);
-  //     const newMerkleRoot = tree.root;
-
-  //     // Owner updates the Merkle root.
-  //     await airdropAddress.updateMerkleRoot(newMerkleRoot);
-
-  //     expect(await airdropAddress.merkleRoot()).to.equal(newMerkleRoot);  // Verify that the Merkle root is updated.
-  //   });
-
-  //   it("Should fail if a non-owner tries to update the Merkle root", async function () {
-  //     const { airdropAddress, addr1, other } = await loadFixture(delpoyLayiAirdropDrop);  // Load the airdrop contract.
-
-  //     // Define a new set of values and generate a new Merkle tree.
-  //     const values = [
-  //       [addr1.address, "0", "70000000000000000000"],
-  //       [other.address, "1", "80000000000000000000"],
-  //       ["0xa0Ee7A142d267C1f36714E4a8F75612F20a79720", "2", "40000000000000000000"],
-  //       ["0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "3", "10000000000000000000"],
-  //     ];
-  //     const tree = StandardMerkleTree.of(values, ["address", "uint256", "uint256"]);
-  //     const newMerkleRoot = tree.root;
-
-  //     // addr1 (non-owner) tries to update the Merkle root (which should fail).
-  //     expect(airdropAddress.connect(addr1).updateMerkleRoot(newMerkleRoot)).to.be.revertedWithCustomError(airdropAddress, "NotOwner");
-  //   });
-  // });
 });
